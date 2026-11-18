@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XAUUSD Decision Assistant | Pro Dashboard</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lightweight Charts v4.1.1 pinned -->
+  <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              gold: '#F59E0B',
+              dark: '#0F172A',
+              card: '#1E293B',
+              border: '#334155',
+              success: '#10B981',
+              danger: '#EF4444'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background-color: #0B0F19; color: #F1F5F9; font-family: ui-sans-serif, system-ui, sans-serif; }
+    .glass-card { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(8px); border: 1px solid #334155; }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- Top Header Navigation -->
+  <header class="border-b border-brand-border bg-slate-900/80 px-6 py-4 flex flex-wrap items-center justify-between gap-4 sticky top-0 z-50 backdrop-blur">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-yellow-300 flex items-center justify-center font-bold text-slate-950 text-xl shadow-lg shadow-amber-500/20">
+        Au
+      </div>
+      <div>
+        <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+          XAUUSD Decision Assistant
+          <span class="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30">v0.3 Active</span>
+        </h1>
+        <p class="text-xs text-slate-400">Institutional Decision Support & Multi-Timeframe Engine</p>
+      </div>
+    </div>
+
+    <!-- Live MT5 Feed & Regime Status Pills -->
+    <div class="flex items-center gap-3 text-xs">
+      <div class="px-3 py-1.5 rounded-lg glass-card flex items-center gap-2">
+        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span class="text-slate-400">MT5 Feed:</span>
+        <span id="mt5Status" class="font-semibold text-emerald-400">Connected (HF Markets)</span>
+      </div>
+
+      <div class="px-3 py-1.5 rounded-lg glass-card flex items-center gap-2">
+        <span class="text-slate-400">Trend Regime:</span>
+        <span id="trendRegime" class="font-semibold text-blue-400">LOADING</span>
+      </div>
+
+      <div class="px-3 py-1.5 rounded-lg glass-card flex items-center gap-2">
+        <span class="text-slate-400">Volatility:</span>
+        <span id="volRegime" class="font-semibold text-purple-400">NORMAL</span>
+      </div>
+
+      <button onclick="fetchMarketCycle()" class="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold transition flex items-center gap-1.5 shadow">
+        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+        <span>Scan Market</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Body Grid -->
+  <main class="flex-1 p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-7xl w-full mx-auto">
+
+    <!-- Left 8 Cols: Chart & Overview -->
+    <div class="lg:col-span-8 flex flex-col gap-6">
+
+      <!-- Realtime Ticker Card -->
+      <div class="glass-card rounded-2xl p-5 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <span class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Gold Spot / US Dollar</span>
+          <div class="flex items-baseline gap-3 mt-1">
+            <span id="livePrice" class="text-3xl font-extrabold text-white tracking-tight">--.--</span>
+            <span id="spreadDisplay" class="text-xs text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/20">Spread: -- pts</span>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-6 text-sm">
+          <div>
+            <div class="text-xs text-slate-400">Bid</div>
+            <div id="liveBid" class="font-semibold text-slate-200">--.--</div>
+          </div>
+          <div class="w-px h-8 bg-slate-700"></div>
+          <div>
+            <div class="text-xs text-slate-400">Ask</div>
+            <div id="liveAsk" class="font-semibold text-slate-200">--.--</div>
+          </div>
+          <div class="w-px h-8 bg-slate-700"></div>
+          <div>
+            <div class="text-xs text-slate-400">Analysis Timeframes</div>
+            <div class="font-semibold text-amber-400">M5 | M15 | H1 | H4</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chart Container Card -->
+      <div class="glass-card rounded-2xl p-5 flex flex-col gap-3">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <i data-lucide="line-chart" class="w-4 h-4 text-amber-400"></i>
+            <h2 class="text-sm font-bold uppercase tracking-wider text-slate-200">Live XAUUSD Technical View</h2>
+            <span id="chartActiveSignalBadge" class="hidden text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 flex items-center gap-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping"></span>
+              Level Sinyal Aktif di Chart
+            </span>
+          </div>
+          <!-- Timeframe Selector -->
+          <div class="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-700/80 text-xs">
+            <button onclick="changeTimeframe('M5')" id="tf-M5" class="px-2.5 py-1 rounded-lg font-bold bg-amber-500 text-slate-950 transition">M5</button>
+            <button onclick="changeTimeframe('M15')" id="tf-M15" class="px-2.5 py-1 rounded-lg text-slate-400 hover:text-white transition">M15</button>
+            <button onclick="changeTimeframe('H1')" id="tf-H1" class="px-2.5 py-1 rounded-lg text-slate-400 hover:text-white transition">H1</button>
+            <button onclick="changeTimeframe('H4')" id="tf-H4" class="px-2.5 py-1 rounded-lg text-slate-400 hover:text-white transition">H4</button>
+          </div>
+        </div>
+        <div id="chartContainer" class="w-full h-[420px] rounded-xl overflow-hidden bg-slate-950/60 border border-slate-800"></div>
+      </div>
+
+      <!-- Active Strategies Matrix -->
+      <div class="glass-card rounded-2xl p-5">
+        <h3 class="text-sm font-bold uppercase tracking-wider text-slate-200 mb-3 flex items-center gap-2">
+          <i data-lucide="layers" class="w-4 h-4 text-amber-400"></i>
+          Active Strategy Matrix (Blueprint Section 6)
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+          <div class="p-3 rounded-xl bg-slate-800/60 border border-slate-700/60">
+            <div class="font-bold text-white mb-1 flex items-center justify-between">
+              Trend Following
+              <span class="text-[10px] text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded">Active</span>
+            </div>
+            <p class="text-slate-400 text-[11px] leading-relaxed">H4/H1 bias filter + M15 EMA 20/50 pullback + M5 trigger confirmation.</p>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-800/60 border border-slate-700/60">
+            <div class="font-bold text-white mb-1 flex items-center justify-between">
+              Liquidity Sweep
+              <span class="text-[10px] text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded">Active</span>
+            </div>
+            <p class="text-slate-400 text-[11px] leading-relaxed">M15 Swing High/Low liquidity pool breach + M5 MSS/CHoCH reclaim.</p>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-800/60 border border-slate-700/60">
+            <div class="font-bold text-white mb-1 flex items-center justify-between">
+              Breakout & Retest
+              <span class="text-[10px] text-emerald-400 bg-emerald-400/10 px-1.5 py-0.5 rounded">Active</span>
+            </div>
+            <p class="text-slate-400 text-[11px] leading-relaxed">H1 Key S/R displacement close + M15 retest rejection.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right 4 Cols: Active Signals & Analytics -->
+    <div class="lg:col-span-4 flex flex-col gap-6">
+
+      <!-- Analytics Summary Card -->
+      <div class="glass-card rounded-2xl p-5">
+        <h3 class="text-sm font-bold uppercase tracking-wider text-slate-200 mb-4 flex items-center gap-2">
+          <i data-lucide="bar-chart-2" class="w-4 h-4 text-amber-400"></i>
+          Performance & Reliability
+        </h3>
+        <div class="grid grid-cols-2 gap-3 text-center">
+          <div class="p-3 rounded-xl bg-slate-800/50 border border-slate-700/50">
+            <div class="text-xs text-slate-400">Win Rate</div>
+            <div id="statWinRate" class="text-xl font-extrabold text-emerald-400 mt-1">--%</div>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-800/50 border border-slate-700/50">
+            <div class="text-xs text-slate-400">Total Signals</div>
+            <div id="statTotal" class="text-xl font-extrabold text-slate-100 mt-1">0</div>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-800/50 border border-slate-700/50">
+            <div class="text-xs text-slate-400">TP Hits</div>
+            <div id="statTpHits" class="text-xl font-extrabold text-emerald-400 mt-1">0</div>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-800/50 border border-slate-700/50">
+            <div class="text-xs text-slate-400">SL Hits</div>
+            <div id="statSlHits" class="text-xl font-extrabold text-rose-400 mt-1">0</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Signals Feed Card -->
+      <div class="glass-card rounded-2xl p-5 flex-1 flex flex-col">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-sm font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
+            <i data-lucide="bell" class="w-4 h-4 text-amber-400"></i>
+            Live Signals Board
+          </h3>
+          <span id="activeCount" class="text-xs bg-slate-800 text-amber-400 px-2 py-0.5 rounded-full font-bold">0 Active</span>
+        </div>
+
+        <!-- Signal List -->
+        <div id="signalList" class="flex-1 flex flex-col gap-3 overflow-y-auto max-h-[420px]">
+          <div class="text-center py-10 text-slate-500 text-xs">
+            <i data-lucide="shield-check" class="w-8 h-8 mx-auto mb-2 text-slate-600"></i>
+            No active signals published.<br>All 3 strategies scanning market conditions...
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Snapshot Detail Modal -->
+  <div id="snapshotModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl">
+      <div class="p-5 border-b border-slate-800 flex items-center justify-between">
+        <h4 class="font-bold text-white flex items-center gap-2">
+          <i data-lucide="archive" class="w-4 h-4 text-amber-400"></i>
+          Immutable Signal Snapshot & Audit Trail
+        </h4>
+        <button onclick="closeModal()" class="text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="p-5 overflow-y-auto flex-1 text-xs">
+        <pre id="modalSnapshotContent" class="bg-slate-950 p-4 rounded-xl text-emerald-400 font-mono text-[11px] overflow-x-auto whitespace-pre-wrap"></pre>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Initialize Lucide Icons
+    lucide.createIcons();
+
+    // Setup TradingView Lightweight Chart
+    const chartContainer = document.getElementById('chartContainer');
+    const chart = LightweightCharts.createChart(chartContainer, {
+      width: chartContainer.clientWidth || 800,
+      height: 420,
+      layout: {
+        background: { color: '#090D16' },
+        textColor: '#94A3B8',
+      },
+      grid: {
+        vertLines: { color: '#1E293B' },
+        horzLines: { color: '#1E293B' },
+      },
+      timeScale: {
+        timeVisible: true,
+        secondsVisible: false,
+      },
+    });
+
+    let candleSeries;
+    try {
+      if (typeof chart.addCandlestickSeries === 'function') {
+        candleSeries = chart.addCandlestickSeries({
+          upColor: '#10B981',
+          downColor: '#EF4444',
+          borderVisible: false,
+          wickUpColor: '#10B981',
+          wickDownColor: '#EF4444',
+        });
+      } else if (typeof chart.addSeries === 'function' && LightweightCharts.CandlestickSeries) {
+        candleSeries = chart.addSeries(LightweightCharts.CandlestickSeries, {
+          upColor: '#10B981',
+          downColor: '#EF4444',
+          borderVisible: false,
+          wickUpColor: '#10B981',
+          wickDownColor: '#EF4444',
+        });
+      }
+    } catch (e) {
+      console.error('Failed to create candle series:', e);
+    }
+
+    let currentTf = 'M5';
+    let currentPriceLines = [];
+    let allActiveSignals = [];
+
+    function clearPriceLines() {
+      if (candleSeries && currentPriceLines.length > 0) {
+        currentPriceLines.forEach(line => {
+          try {
+            candleSeries.removePriceLine(line);
+          } catch (e) {}
+        });
+        currentPriceLines = [];
+      }
+      const badge = document.getElementById('chartActiveSignalBadge');
+      if (badge) badge.classList.add('hidden');
+    }
+
+    function renderPriceLinesForSignal(sig) {
+      clearPriceLines();
+      if (!candleSeries || !sig) return;
+
+      const entry = Number(sig.entry_price);
+      const sl = Number(sig.stop_loss);
+      const tp = Number(sig.take_profit);
+
+      // 1. Entry Line (Gold / Amber Solid)
+      if (entry && !isNaN(entry)) {
+        try {
+          const entryLine = candleSeries.createPriceLine({
+            price: entry,
+            color: '#F59E0B',
+            lineWidth: 2,
+            lineStyle: 0, // Solid
+            axisLabelVisible: true,
+            title: `ENTRY (${sig.entry_type}) $${entry.toFixed(2)}`,
+          });
+          currentPriceLines.push(entryLine);
+        } catch (e) {
+          console.error('Error creating entry price line:', e);
+        }
+      }
+
+      // 2. Stop Loss Line (Red Dashed)
+      if (sl && !isNaN(sl)) {
+        try {
+          const slLine = candleSeries.createPriceLine({
+            price: sl,
+            color: '#EF4444',
+            lineWidth: 2,
+            lineStyle: 2, // Dashed
+            axisLabelVisible: true,
+            title: `SL $${sl.toFixed(2)}`,
+          });
+          currentPriceLines.push(slLine);
+        } catch (e) {
+          console.error('Error creating SL price line:', e);
+        }
+      }
+
+      // 3. Take Profit Line (Emerald / Green Dashed)
+      if (tp && !isNaN(tp)) {
+        try {
+          const tpLine = candleSeries.createPriceLine({
+            price: tp,
+            color: '#10B981',
+            lineWidth: 2,
+            lineStyle: 2, // Dashed
+            axisLabelVisible: true,
+            title: `TP $${tp.toFixed(2)}`,
+          });
+          currentPriceLines.push(tpLine);
+        } catch (e) {
+          console.error('Error creating TP price line:', e);
+        }
+      }
+
+      const badge = document.getElementById('chartActiveSignalBadge');
+      if (badge) badge.classList.remove('hidden');
+    }
+
+    function focusSignal(signalId) {
+      const sig = allActiveSignals.find(s => s.signal_id === signalId);
+      if (sig) {
+        renderPriceLinesForSignal(sig);
+      }
+    }
+
+    // Responsive Auto Resize with ResizeObserver
+    const resizeObserver = new ResizeObserver(entries => {
+      if (entries.length > 0 && entries[0].contentRect.width > 0) {
+        chart.applyOptions({ 
+          width: entries[0].contentRect.width,
+          height: 420 
+        });
+        chart.timeScale().fitContent();
+      }
+    });
+    resizeObserver.observe(chartContainer);
+
+    window.addEventListener('resize', () => {
+      if (chartContainer.clientWidth > 0) {
+        chart.applyOptions({ width: chartContainer.clientWidth });
+      }
+    });
+
+    async function loadCandles(tf = currentTf) {
+      if (!candleSeries) return;
+      try {
+        const res = await fetch(`/api/market/candles?timeframe=${tf}&count=100`);
+        const candles = await res.json();
+        if (candles && Array.isArray(candles) && candles.length > 0) {
+          const sorted = [];
+          const seen = new Set();
+          for (const c of candles) {
+            const t = Number(c.time);
+            if (!seen.has(t)) {
+              seen.add(t);
+              sorted.push({
+                time: t,
+                open: Number(c.open),
+                high: Number(c.high),
+                low: Number(c.low),
+                close: Number(c.close)
+              });
+            }
+          }
+          sorted.sort((a, b) => a.time - b.time);
+          candleSeries.setData(sorted);
+          chart.timeScale().fitContent();
+        }
+      } catch (err) {
+        console.error('Error loading candles:', err);
+      }
+    }
+
+    function changeTimeframe(tf) {
+      currentTf = tf;
+      ['M5', 'M15', 'H1', 'H4'].forEach(t => {
+        const btn = document.getElementById(`tf-${t}`);
+        if (btn) {
+          if (t === tf) {
+            btn.className = "px-2.5 py-1 rounded-lg font-bold bg-amber-500 text-slate-950 transition";
+          } else {
+            btn.className = "px-2.5 py-1 rounded-lg text-slate-400 hover:text-white transition";
+          }
+        }
+      });
+      loadCandles(tf);
+    }
+
+    // Fetch live market data and signals
+    async function fetchMarketCycle() {
+      try {
+        const res = await fetch('/api/market/overview');
+        const data = await res.json();
+        
+        if (data.price) {
+          document.getElementById('livePrice').innerText = Number(data.price).toFixed(2);
+        }
+        if (data.bid) {
+          document.getElementById('liveBid').innerText = Number(data.bid).toFixed(2);
+        }
+        if (data.ask) {
+          document.getElementById('liveAsk').innerText = Number(data.ask).toFixed(2);
+        }
+        if (data.spread !== undefined && data.spread !== null) {
+          document.getElementById('spreadDisplay').innerText = `Spread: ${data.spread} pts ($${data.spread_usd || 0})`;
+        }
+
+        if (data.regime) {
+          document.getElementById('trendRegime').innerText = data.regime;
+          document.getElementById('trendRegime').className = `font-semibold ${data.regime.includes('BULLISH') ? 'text-emerald-400' : data.regime.includes('BEARISH') ? 'text-rose-400' : 'text-blue-400'}`;
+        }
+        if (data.volatility) {
+          document.getElementById('volRegime').innerText = data.volatility;
+        }
+
+        // Always reload candles on active timeframe
+        await loadCandles(currentTf);
+
+        // Fetch active signals
+        const sigRes = await fetch('/api/signals/active');
+        const signals = await sigRes.json();
+        renderSignals(signals);
+
+        // Fetch analytics
+        const anaRes = await fetch('/api/analytics');
+        const analytics = await anaRes.json();
+        document.getElementById('statTotal').innerText = analytics.total_signals;
+        document.getElementById('statTpHits').innerText = analytics.tp_hits;
+        document.getElementById('statSlHits').innerText = analytics.sl_hits;
+        document.getElementById('statWinRate').innerText = `${analytics.win_rate_percentage}%`;
+
+      } catch (err) {
+        console.error('Error fetching market cycle:', err);
+      }
+    }
+
+    function renderSignals(signals) {
+      allActiveSignals = signals;
+      const list = document.getElementById('signalList');
+      document.getElementById('activeCount').innerText = `${signals.length} Active`;
+
+      if (signals.length === 0) {
+        clearPriceLines();
+        list.innerHTML = `
+          <div class="text-center py-10 text-slate-500 text-xs">
+            <i data-lucide="shield-check" class="w-8 h-8 mx-auto mb-2 text-slate-600"></i>
+            No active signals published.<br>All 3 strategies scanning market conditions...
+          </div>`;
+        lucide.createIcons();
+        return;
+      }
+
+      // Automatically render price lines for the first signal if not already set
+      if (currentPriceLines.length === 0 && signals.length > 0) {
+        renderPriceLinesForSignal(signals[0]);
+      }
+
+      list.innerHTML = signals.map(sig => `
+        <div class="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700 flex flex-col gap-2 shadow-md">
+          <div class="flex items-center justify-between">
+            <span class="px-2 py-0.5 rounded font-bold text-[10px] ${sig.side === 'BUY' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'}">
+              ${sig.entry_type} ${sig.side}
+            </span>
+            <span class="text-[11px] text-amber-400 font-semibold">${sig.status}</span>
+          </div>
+
+          <div class="grid grid-cols-3 gap-2 text-[11px] my-1">
+            <div>
+              <span class="text-slate-400">Entry</span>
+              <div class="font-bold text-amber-400">${sig.entry_price}</div>
+            </div>
+            <div>
+              <span class="text-slate-400">Stop Loss</span>
+              <div class="font-bold text-rose-400">${sig.stop_loss}</div>
+            </div>
+            <div>
+              <span class="text-slate-400">Take Profit</span>
+              <div class="font-bold text-emerald-400">${sig.take_profit}</div>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between text-[11px] pt-2 border-t border-slate-700/60 text-slate-400">
+            <button onclick="focusSignal('${sig.signal_id}')" class="text-amber-400 hover:text-amber-300 font-semibold flex items-center gap-1">
+              <i data-lucide="crosshair" class="w-3.5 h-3.5"></i> Plot di Chart
+            </button>
+            <button onclick="viewSnapshot('${sig.signal_id}')" class="text-slate-400 hover:text-white flex items-center gap-1">
+              <i data-lucide="eye" class="w-3.5 h-3.5"></i> Snapshot
+            </button>
+          </div>
+        </div>
+      `).join('');
+      lucide.createIcons();
+    }
+
+    async function viewSnapshot(signalId) {
+      try {
+        const res = await fetch(`/api/signals/${signalId}`);
+        const data = await res.json();
+        document.getElementById('modalSnapshotContent').innerText = JSON.stringify(data, null, 2);
+        document.getElementById('snapshotModal').classList.remove('hidden');
+      } catch (e) {
+        alert('Failed to load snapshot');
+      }
+    }
+
+    function closeModal() {
+      document.getElementById('snapshotModal').classList.add('hidden');
+    }
+
+    // Initial load & Polling every 5 seconds
+    fetchMarketCycle();
+    setInterval(fetchMarketCycle, 5000);
+  </script>
+</body>
+</html>

@@ -555,6 +555,13 @@
       document.getElementById('snapshotModal').classList.add('hidden');
     }
 
+    // Register Service Worker for PWA
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/static/sw.js').catch(e => console.log('SW error:', e));
+      });
+    }
+
     // Initial load & Polling every 5 seconds
     fetchMarketCycle();
     setInterval(fetchMarketCycle, 5000);

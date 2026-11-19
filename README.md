@@ -4,7 +4,7 @@ Aplikasi pendukung keputusan trading emas (*decision support system*) otomatis m
 
 ---
 
-## 🚀 Fitur Utama
+## Fitur Utama
 
 - **Autonomous Market Monitoring**: Memantau feed broker MT5 secara otomatis tanpa perlu intervensi manual.
 - **Multi-Timeframe Engine**: Sinkronisasi data M5, M15, H1, dan H4 dalam waktu UTC.
@@ -21,7 +21,7 @@ Aplikasi pendukung keputusan trading emas (*decision support system*) otomatis m
 
 ---
 
-## 📂 Struktur Proyek
+##  Struktur Proyek
 
 ```
 xauusd-decision-assistant/
@@ -59,7 +59,7 @@ xauusd-decision-assistant/
 
 ---
 
-## ⚙️ Konfigurasi `.env`
+##  Konfigurasi `.env`
 
 File `.env` sudah disiapkan dengan nilai default:
 
@@ -85,7 +85,7 @@ TELEGRAM_CHAT_ID=your_chat_id_here
 
 ---
 
-## 🏃 Menjalankan Aplikasi
+##  Menjalankan Aplikasi
 
 1. **Jalankan Server Dashboard & API**:
    ```powershell

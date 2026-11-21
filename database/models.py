@@ -106,7 +106,11 @@ class Signal(Base):
     entry_price = Column(Numeric(12, 4), nullable=False)
     stop_loss = Column(Numeric(12, 4), nullable=False)
     take_profit = Column(Numeric(12, 4), nullable=False)
+    take_profit_2 = Column(Numeric(12, 4), nullable=True)  # TP2 (1:3.5)
+    take_profit_3 = Column(Numeric(12, 4), nullable=True)  # TP3 / Runner (1:5.0+)
     risk_reward = Column(Numeric(8, 2), nullable=False)
+    max_r_multiple = Column(Numeric(8, 2), default=Decimal("0.0"), nullable=True)
+    is_breakeven_set = Column(Boolean, default=False, nullable=False)
     
     # Status lifecycle: PUBLISHED, WAITING_FOR_ENTRY, MONITORING, FILLED, EXPIRED, INVALIDATED, TP_HIT, SL_HIT, BREAKEVEN, AMBIGUOUS
     status = Column(String(32), default="PUBLISHED", nullable=False)
@@ -159,7 +163,7 @@ class SignalEvent(Base):
 
     event_id = Column(Integer, primary_key=True, autoincrement=True)
     signal_id = Column(UUID(as_uuid=True), ForeignKey("signals.signal_id"), nullable=False)
-    event_type = Column(String(32), nullable=False)  # PUBLISHED, TOUCHED, FILLED, INVALIDATED, EXPIRED, TP_HIT, SL_HIT, BE
+    event_type = Column(String(64), nullable=False)  # PUBLISHED, TOUCHED, FILLED, INVALIDATED, EXPIRED, TP_HIT, SL_HIT, BE
     timestamp_utc = Column(DateTime, default=datetime.utcnow, nullable=False)
     price_at_event = Column(Numeric(12, 4), nullable=True)
     payload = Column(JSONB, nullable=True)
@@ -220,7 +224,7 @@ class NotificationLog(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     signal_id = Column(UUID(as_uuid=True), nullable=True)
     channel = Column(String(32), default="TELEGRAM", nullable=False)
-    delivery_status = Column(String(16), default="PENDING", nullable=False)  # PENDING, SENT, FAILED
+    delivery_status = Column(String(32), default="PENDING", nullable=False)  # PENDING, SENT, FAILED, PENDING_OR_MOCKED
     payload = Column(JSONB, nullable=False)
     error_message = Column(Text, nullable=True)
     sent_at = Column(DateTime, nullable=True)

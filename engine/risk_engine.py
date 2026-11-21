@@ -1,6 +1,7 @@
 import logging
 from typing import Dict, Any, Tuple
 from config.settings import settings
+from collector.news_filter import NewsFilter
 
 logger = logging.getLogger(__name__)
 
@@ -44,5 +45,10 @@ class RiskEngine:
         volatility = regime.get("volatility_regime", "NORMAL")
         if volatility == "EXTREME" and not settings.ALLOW_EXTREME_VOLATILITY:
             return False, "BLOCKED_BY_EXTREME_VOLATILITY_GATE"
+
+        # 7. High-Impact Economic News Gate
+        is_news_blackout, news_reason = NewsFilter.is_news_blackout()
+        if is_news_blackout:
+            return False, f"BLOCKED_BY_NEWS_GATE: {news_reason}"
 
         return True, "RISK_VALID"

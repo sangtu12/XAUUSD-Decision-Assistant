@@ -57,6 +57,10 @@ class SignalPublisher:
         entry_price = Decimal(str(entry_plan.get("entry_price", 0.0)))
         stop_loss = Decimal(str(entry_plan.get("stop_loss", 0.0)))
         take_profit = Decimal(str(entry_plan.get("take_profit", 0.0)))
+        tp2_val = entry_plan.get("take_profit_2")
+        take_profit_2 = Decimal(str(tp2_val)) if tp2_val is not None else None
+        tp3_val = entry_plan.get("take_profit_3")
+        take_profit_3 = Decimal(str(tp3_val)) if tp3_val is not None else None
         risk_reward = Decimal(str(entry_plan.get("risk_reward", 2.0)))
         ref_price = Decimal(str(entry_plan.get("reference_price", entry_price)))
 
@@ -69,6 +73,8 @@ class SignalPublisher:
             entry_price=entry_price,
             stop_loss=stop_loss,
             take_profit=take_profit,
+            take_profit_2=take_profit_2,
+            take_profit_3=take_profit_3,
             risk_reward=risk_reward,
             status="PUBLISHED" if entry_type == "MARKET" else "WAITING_FOR_ENTRY",
             published_at=datetime.utcnow()
@@ -111,6 +117,8 @@ class SignalPublisher:
             "entry_price": str(entry_price),
             "stop_loss": str(stop_loss),
             "take_profit": str(take_profit),
+            "take_profit_2": str(take_profit_2) if take_profit_2 else "",
+            "take_profit_3": str(take_profit_3) if take_profit_3 else "",
             "risk_reward": str(risk_reward),
             "spread": f"{round(market_data.get('ask', 0) - market_data.get('bid', 0), 2)}",
             "rationale": setup_data.get("rationale", "")

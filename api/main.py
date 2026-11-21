@@ -11,6 +11,7 @@ from config.settings import settings
 from database.connection import get_db, init_db
 from database.models import Signal, SignalSnapshot, SignalEvent, SignalEvaluation, MarketBar
 from engine.monitoring_loop import MonitoringEngine
+from engine.backtest_engine import HistoricalBacktestEngine
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("api")
@@ -99,7 +100,8 @@ async def get_market_overview():
 def get_candles(timeframe: str = "M5", count: int = 100, db: Session = Depends(get_db)):
     bars = db.query(MarketBar).filter(
         MarketBar.timeframe == timeframe.upper()
-    ).order_by(MarketBar.timestamp_utc.asc()).all()
+    ).order_by(MarketBar.timestamp_utc.desc()).limit(count).all()
+    bars.reverse()
     
     return [
         {
@@ -111,7 +113,7 @@ def get_candles(timeframe: str = "M5", count: int = 100, db: Session = Depends(g
             "volume": b.tick_volume,
             "is_complete": b.is_complete
         }
-        for b in bars[-count:]
+        for b in bars
     ]
 
 @app.get("/api/signals/active")
@@ -129,7 +131,11 @@ def get_active_signals(db: Session = Depends(get_db)):
             "entry_price": float(s.entry_price),
             "stop_loss": float(s.stop_loss),
             "take_profit": float(s.take_profit),
+            "take_profit_2": float(s.take_profit_2) if s.take_profit_2 is not None else None,
+            "take_profit_3": float(s.take_profit_3) if s.take_profit_3 is not None else None,
             "risk_reward": float(s.risk_reward),
+            "is_breakeven_set": s.is_breakeven_set,
+            "max_r_multiple": float(s.max_r_multiple) if s.max_r_multiple is not None else 0.0,
             "status": s.status,
             "published_at": s.published_at.isoformat() if s.published_at else None
         }
@@ -147,7 +153,8 @@ def get_signal_history(limit: int = 50, db: Session = Depends(get_db)):
                 "setup_validity": s.evaluation.setup_validity,
                 "trade_outcome": s.evaluation.trade_outcome,
                 "r_multiple": float(s.evaluation.r_multiple) if s.evaluation.r_multiple is not None else None,
-                "notes": s.evaluation.notes
+                "notes": s.evaluation.notes,
+                "evaluated_at": s.evaluation.evaluated_at.isoformat() if s.evaluation.evaluated_at else None
             }
         res.append({
             "signal_id": str(s.signal_id),
@@ -156,13 +163,48 @@ def get_signal_history(limit: int = 50, db: Session = Depends(get_db)):
             "entry_price": float(s.entry_price),
             "stop_loss": float(s.stop_loss),
             "take_profit": float(s.take_profit),
+            "take_profit_2": float(s.take_profit_2) if s.take_profit_2 is not None else None,
+            "take_profit_3": float(s.take_profit_3) if s.take_profit_3 is not None else None,
             "risk_reward": float(s.risk_reward),
+            "is_breakeven_set": s.is_breakeven_set,
+            "max_r_multiple": float(s.max_r_multiple) if s.max_r_multiple is not None else 0.0,
             "status": s.status,
             "published_at": s.published_at.isoformat() if s.published_at else None,
             "closed_at": s.closed_at.isoformat() if s.closed_at else None,
             "evaluation": eval_data
         })
     return res
+
+@app.get("/api/backtest/run")
+def run_backtest_endpoint(bars_count: int = 500):
+    """Run an automated historical backtest over recent MT5 market bars."""
+    mt5 = monitoring_engine.mt5
+    if not mt5.initialized:
+        mt5.connect()
+    
+    sym = mt5.find_gold_symbol(settings.MT5_SYMBOL)
+    if not sym:
+        raise HTTPException(status_code=503, detail="MT5 gold symbol unavailable for backtest.")
+
+    timeframe_dfs = {}
+    for tf in ["M5", "M15", "H1", "H4"]:
+        count = bars_count if tf in ["M5", "M15"] else max(150, bars_count // 3)
+        df = mt5.fetch_rates(sym, tf, count=count)
+        if df is not None and len(df) > 0:
+            timeframe_dfs[tf] = df
+
+    if "M5" not in timeframe_dfs or len(timeframe_dfs["M5"]) < 60:
+        raise HTTPException(status_code=400, detail="Insufficient M5 historical data retrieved.")
+
+    engine = HistoricalBacktestEngine()
+    result = engine.run_backtest(
+        timeframe_dfs=timeframe_dfs,
+        initial_balance_usd=10000.0,
+        risk_per_trade_pct=1.0,
+        enable_breakeven=True,
+        enable_trailing_runner=True
+    )
+    return result
 
 @app.get("/api/signals/{signal_id}")
 def get_signal_detail(signal_id: str, db: Session = Depends(get_db)):

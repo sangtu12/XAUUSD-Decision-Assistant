@@ -134,7 +134,7 @@ class MT5Client:
         df = pd.DataFrame(rates)
         # Convert timestamp to UTC datetime
         df["time"] = pd.to_datetime(df["time"], unit="s", utc=True)
-        df.rename(columns={"time": "timestamp_utc", "real_volume": "real_vol"}, inplace=True)
+        df = df.rename(columns={"time": "timestamp_utc", "real_volume": "real_vol"})
         return df
 
     def disconnect(self):

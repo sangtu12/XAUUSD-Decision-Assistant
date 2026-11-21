@@ -57,15 +57,25 @@ class TelegramNotifier:
         order_type = signal_data.get("entry_type", "MARKET")
         side = signal_data.get("side", "BUY")
         icon = "🟢" if side == "BUY" else "🔴"
+        tp1 = signal_data.get("take_profit", "0.0")
+        tp2 = signal_data.get("take_profit_2")
+        tp3 = signal_data.get("take_profit_3")
         
+        tp_text = f"🏁 *TP 1 (1:2.0)*: `{tp1}`"
+        if tp2:
+            tp_text += f"\n🏁 *TP 2 (1:3.5)*: `{tp2}`"
+        if tp3:
+            tp_text += f"\n🚀 *TP 3 Runner (1:5+)*: `{tp3}`"
+
         msg = (
             f"*{icon} XAUUSD SIGNAL: {order_type} {side}*\n"
             f"━━━━━━━━━━━━━━━━━━━━━\n"
             f"🎯 *Strategy*: `{signal_data.get('strategy_name', 'Rule-Based')}`\n"
             f"📍 *Entry*: `{signal_data.get('entry_price', '0.0')}`\n"
             f"🛑 *Stop Loss*: `{signal_data.get('stop_loss', '0.0')}`\n"
-            f"🏁 *Take Profit*: `{signal_data.get('take_profit', '0.0')}`\n"
+            f"{tp_text}\n"
             f"⚖️ *Risk/Reward*: `1:{signal_data.get('risk_reward', '2.0')}`\n"
+            f"🛡️ *Breakeven*: Auto-trail saat mencapai +1.5R\n"
             f"📊 *Spread*: `{signal_data.get('spread', 'N/A')}`\n"
             f"━━━━━━━━━━━━━━━━━━━━━\n"
             f"💡 *Rationale*: {signal_data.get('rationale', 'N/A')}\n"

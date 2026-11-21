@@ -25,14 +25,15 @@ class BreakoutRetestStrategy(BaseStrategy):
         if len(df_h1) < 30 or len(df_m15) < 30:
             return candidates
 
-        # 1. Identify Key S/R from H1 Swings
-        h1_swings = FeatureEngine.detect_swings(df_h1, lookback=4)
+        # 1. Identify Key S/R from H1 Swings (Institutional lookback=5)
+        h1_swings = FeatureEngine.detect_swings(df_h1, lookback=5)
         h1_highs = [s["price"] for s in h1_swings["swing_highs"]]
         h1_lows = [s["price"] for s in h1_swings["swing_lows"]]
 
         m15_last = df_m15.iloc[-2]
         m15_prev = df_m15.iloc[-3]
         m15_close = float(m15_last["close"])
+        m15_open = float(m15_last["open"])
         m15_low = float(m15_last["low"])
         m15_high = float(m15_last["high"])
         m15_atr = float(m15_last.get("atr_14", 2.0))
@@ -42,12 +43,14 @@ class BreakoutRetestStrategy(BaseStrategy):
         # 2. Bullish Breakout & Retest of Resistance
         if h1_highs:
             recent_res = h1_highs[-1]
-            # Breakout occurred on prev candle, retest on current candle
-            if float(m15_prev["close"]) > recent_res and abs(m15_low - recent_res) <= m15_atr * 0.4 and m15_close > recent_res:
+            # Breakout occurred on prev candle, retest on current candle holding as support
+            if float(m15_prev["close"]) > recent_res and abs(m15_low - recent_res) <= m15_atr * 0.4 and m15_close > recent_res and m15_close >= m15_open:
                 sl = recent_res - (m15_atr * 0.7)
                 risk = current_ask - sl
                 if risk > 0:
-                    tp = current_ask + (risk * 2.0)
+                    tp1 = current_ask + (risk * 2.0)
+                    tp2 = current_ask + (risk * 3.5)
+                    tp3 = current_ask + (risk * 5.0)
                     candidates.append({
                         "strategy": self.name,
                         "direction": "BUY",
@@ -57,7 +60,9 @@ class BreakoutRetestStrategy(BaseStrategy):
                             "reference_price": current_ask,
                             "entry_price": current_ask,
                             "stop_loss": sl,
-                            "take_profit": tp,
+                            "take_profit": tp1,
+                            "take_profit_2": tp2,
+                            "take_profit_3": tp3,
                             "risk_reward": 2.0,
                             "invalidation_price": sl
                         },
@@ -65,21 +70,25 @@ class BreakoutRetestStrategy(BaseStrategy):
                             "entry_type": "BUY_LIMIT",
                             "entry_price": round(recent_res, 2),
                             "stop_loss": sl,
-                            "take_profit": tp,
-                            "risk_reward": round((tp - recent_res) / (recent_res - sl), 2) if (recent_res - sl) > 0 else 0,
+                            "take_profit": tp1,
+                            "take_profit_2": tp2,
+                            "take_profit_3": tp3,
+                            "risk_reward": round((tp1 - recent_res) / (recent_res - sl), 2) if (recent_res - sl) > 0 else 0,
                             "invalidation_price": sl
                         },
-                        "rationale": f"H1 Resistance {recent_res} broken with displacement, M15 retested and held."
+                        "rationale": f"H1 Resistance {round(recent_res, 2)} broken with displacement, M15 retested and held as support."
                     })
 
         # 3. Bearish Breakout & Retest of Support
         if h1_lows:
             recent_sup = h1_lows[-1]
-            if float(m15_prev["close"]) < recent_sup and abs(m15_high - recent_sup) <= m15_atr * 0.4 and m15_close < recent_sup:
+            if float(m15_prev["close"]) < recent_sup and abs(m15_high - recent_sup) <= m15_atr * 0.4 and m15_close < recent_sup and m15_close <= m15_open:
                 sl = recent_sup + (m15_atr * 0.7)
                 risk = sl - current_bid
                 if risk > 0:
-                    tp = current_bid - (risk * 2.0)
+                    tp1 = current_bid - (risk * 2.0)
+                    tp2 = current_bid - (risk * 3.5)
+                    tp3 = current_bid - (risk * 5.0)
                     candidates.append({
                         "strategy": self.name,
                         "direction": "SELL",
@@ -89,7 +98,9 @@ class BreakoutRetestStrategy(BaseStrategy):
                             "reference_price": current_bid,
                             "entry_price": current_bid,
                             "stop_loss": sl,
-                            "take_profit": tp,
+                            "take_profit": tp1,
+                            "take_profit_2": tp2,
+                            "take_profit_3": tp3,
                             "risk_reward": 2.0,
                             "invalidation_price": sl
                         },
@@ -97,11 +108,13 @@ class BreakoutRetestStrategy(BaseStrategy):
                             "entry_type": "SELL_LIMIT",
                             "entry_price": round(recent_sup, 2),
                             "stop_loss": sl,
-                            "take_profit": tp,
-                            "risk_reward": round((recent_sup - tp) / (sl - recent_sup), 2) if (sl - recent_sup) > 0 else 0,
+                            "take_profit": tp1,
+                            "take_profit_2": tp2,
+                            "take_profit_3": tp3,
+                            "risk_reward": round((recent_sup - tp1) / (sl - recent_sup), 2) if (sl - recent_sup) > 0 else 0,
                             "invalidation_price": sl
                         },
-                        "rationale": f"H1 Support {recent_sup} broken with displacement, M15 retested and held."
+                        "rationale": f"H1 Support {round(recent_sup, 2)} broken with displacement, M15 retested and held as resistance."
                     })
 
         return candidates

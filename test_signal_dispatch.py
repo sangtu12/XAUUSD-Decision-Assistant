@@ -13,11 +13,11 @@ async def main():
     try:
         publisher = SignalPublisher(db)
 
-        # Setup sampel
+        import time
         setup_data = {
             "strategy": "TrendFollowing",
             "direction": "SELL",
-            "fingerprint": "DEMO_TEST_SIGNAL_001",
+            "fingerprint": f"DEMO_TEST_SIGNAL_{int(time.time())}",
             "rationale": "Uji coba integrasi sistem: H1 Bearish bias + M15 Pullback EMA 20 rejection."
         }
 
@@ -51,7 +51,7 @@ async def main():
         )
 
         if sig:
-            print(f"✅ Sinyal tes berhasil diterbitkan dengan ID: {sig.signal_id}")
+            print(f"[OK] Sinyal tes berhasil diterbitkan dengan ID: {sig.signal_id}")
             print(f"Cek Telegram kamu di t.me/trade_assistant_drkns_bot!")
         else:
             print("Sinyal dilewati (mungkin duplikat).")
